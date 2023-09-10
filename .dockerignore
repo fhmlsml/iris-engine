@@ -1,0 +1,6 @@
+external/
+apigajelas/
+env/
+__pycache__/
+sa.json
+.env

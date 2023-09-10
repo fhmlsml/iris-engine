@@ -1,0 +1,40 @@
+
+version: "3.8"
+
+services:
+  irisdb:
+    image: postgres:14.2-alpine
+    ports:
+      - "5435:5432"
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - irisvol:/var/lib/postgresql/data
+  irisapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: irisapp
+    command: bash -c "uvicorn main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_HOST=irisdb
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - OPS_SECRET_KEY=${OPS_SECRET_KEY}
+      - TITLE_ENV=LOCALHOST
+      - PROJECT_ID=${PROJECT_ID}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/SA/sa.json
+    depends_on:
+      - irisdb
+    volumes:
+      - ./alembic/versions:/app/alembic/versions # mount volume for local development, if some developers want to develop this app, the updated migration will exist in local directory and ready to migrate
+
+volumes:
+  irisvol:

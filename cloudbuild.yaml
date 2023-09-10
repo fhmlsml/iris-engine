@@ -1,0 +1,62 @@
+
+steps:
+# build the container image
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'Build image'
+  args: [ 'build', '-t', 'asia-southeast2-docker.pkg.dev/$PROJECT_ID/your-repo/iris-app:$TAG_NAME', '.' ]
+  waitFor: ['-']
+
+# push container image
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'Push to ArtifactRegistry'
+  args: [ 'push', 'asia-southeast2-docker.pkg.dev/$PROJECT_ID/fhmisml/iris-app:$TAG_NAME']
+  waitFor: ['Build image']
+
+# ssh to Compute Engine for Dev
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'Configuring Deployments Dev'
+  entrypoint: bash
+  waitFor: ['Push to ArtifactRegistry']
+  args:
+    - '-c'
+    - |
+    - set -x && \
+      gcloud --project=$_PROJECT_TARGET_DEV compute ssh \
+      --tunnel-through-iap \
+      --zone asia-southeast2-a $_SSH_VM_TARGET_DEV \
+      --command="/bin/bash sed -i 's/tagver/$TAG_NAME/g' /home/fhmisml/IRISAPP/iris-engine/docker-compose.yaml && /home/fhmisml/IRISAPP/iris-engine/deploy.sh"
+
+# # ssh to Compute Engine for stg
+# - name: 'gcr.io/cloud-builders/gcloud'
+#   id: 'Configuring Deployments Staging'
+#   entrypoint: /bin/sh
+#   waitFor: ['Push to ArtifactRegistry']
+#   args:
+#     - '-c'
+#     - |
+#     - set -x && \
+#       gcloud --project=${_PROJECT_TARGET_STG} compute ssh \
+#       --tunnel-through-iap \
+#       --zone asia-southeast2-a cloudbuild@${_SSH_VM_TARGET_STG} \
+#       --command='/bin/sh sed -i 's/tagver/${TAG_NAME}/g' /home/fhmisml/IRISAPP/docker-compose.yaml && /home/fhmisml/IRISAPP/deploy.sh'
+
+# # ssh to Compute Engine for Prod
+# - name: 'gcr.io/cloud-builders/gcloud'
+#   id: 'Configuring Deployments Prod'
+#   entrypoint: /bin/sh
+#   waitFor: ['Push to ArtifactRegistry']
+#   args:
+#     - '-c'
+#     - |
+#     - set -x && \
+#       gcloud --project=${_PROJECT_TARGET_PROD} compute ssh \
+#       --tunnel-through-iap \
+#       --zone asia-southeast2-a cloudbuild@${_SSH_VM_TARGET_PROD} \
+#       --command='/bin/sh sed -i 's/tagver/${TAG_NAME}/g' /home/fhmisml/IRISAPP/docker-compose.yaml && /home/fhmisml/IRISAPP/deploy.sh'
+
+# cloud logging only or need permission to (roles/logging.admin) 
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+- 'asia-southeast2-docker.pkg.dev/$PROJECT_ID/fhmisml/iris-app:$TAG_NAME'
